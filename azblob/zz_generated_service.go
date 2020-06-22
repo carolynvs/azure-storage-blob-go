@@ -7,12 +7,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/xml"
-	"github.com/Azure/azure-pipeline-go/pipeline"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
+
+	"github.com/Azure/azure-pipeline-go/pipeline"
 )
 
 // serviceClient is the client for the Service methods of the Azblob service.
@@ -464,4 +465,59 @@ func (client serviceClient) setPropertiesResponder(resp pipeline.Response) (pipe
 	io.Copy(ioutil.Discard, resp.Response().Body)
 	resp.Response().Body.Close()
 	return &ServiceSetPropertiesResponse{rawResponse: resp.Response()}, err
+}
+
+func (client serviceClient) FilterBlobsByTags(ctx context.Context, marker *string, where *string) (*FilterBlobsByTagsResponse, error) {
+	req, err := client.filterBlobsByTagsPreparer(marker, where)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.Pipeline().Do(ctx, responderPolicyFactory{responder: client.filterBlobsByTagsResponder}, req)
+	if err != nil {
+		return nil, err
+	}
+	return resp.(*FilterBlobsByTagsResponse), err
+}
+
+func (client serviceClient) filterBlobsByTagsPreparer(marker *string, where *string) (pipeline.Request, error) {
+	req, err := pipeline.NewRequest("GET", client.url, nil)
+	if err != nil {
+		return req, pipeline.NewError(err, "failed to create request")
+	}
+	params := req.URL.Query()
+	if marker != nil && len(*marker) > 0 {
+		params.Set("marker", *marker)
+	}
+	if where != nil && len(*where) > 0 {
+		params.Set("where", *where)
+	}
+	params.Set("comp", "blobs")
+	req.URL.RawQuery = params.Encode()
+	req.Header.Set("x-ms-version", "2019-10-10")
+	ioutil.WriteFile("/tmp/porter/query.txt", []byte(req.URL.String()), 0644)
+	return req, nil
+}
+
+func (client serviceClient) filterBlobsByTagsResponder(resp pipeline.Response) (pipeline.Response, error) {
+	err := validateResponse(resp, http.StatusOK)
+	if resp == nil {
+		return nil, err
+	}
+	result := &FilterBlobsByTagsResponse{rawResponse: resp.Response()}
+	if err != nil {
+		return result, err
+	}
+	defer resp.Response().Body.Close()
+	b, err := ioutil.ReadAll(resp.Response().Body)
+	if err != nil {
+		return result, err
+	}
+	if len(b) > 0 {
+		b = removeBOM(b)
+		err = xml.Unmarshal(b, result)
+		if err != nil {
+			return result, NewResponseError(err, resp.Response(), "failed to unmarshal response body")
+		}
+	}
+	return result, nil
 }

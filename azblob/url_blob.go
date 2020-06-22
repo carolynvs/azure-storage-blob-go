@@ -136,6 +136,14 @@ func (b BlobURL) SetMetadata(ctx context.Context, metadata Metadata, ac BlobAcce
 		ifModifiedSince, ifUnmodifiedSince, ifMatchETag, ifNoneMatchETag, nil)
 }
 
+func (b BlobURL) GetTags(ctx context.Context) (*BlobGetTagsResponse, error) {
+	return b.blobClient.GetTags(ctx)
+}
+
+func (b BlobURL) SetTags(ctx context.Context, tags map[string]string) (*BlobSetTagsResponse, error) {
+	return b.blobClient.SetTags(ctx, nil, tags)
+}
+
 // CreateSnapshot creates a read-only snapshot of a blob.
 // For more information, see https://docs.microsoft.com/rest/api/storageservices/snapshot-blob.
 func (b BlobURL) CreateSnapshot(ctx context.Context, metadata Metadata, ac BlobAccessConditions) (*BlobCreateSnapshotResponse, error) {

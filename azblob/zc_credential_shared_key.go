@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"sort"
@@ -67,6 +68,7 @@ func (f *SharedKeyCredential) New(next pipeline.Policy, po *pipeline.PolicyOptio
 		if err != nil && response != nil && response.Response() != nil && response.Response().StatusCode == http.StatusForbidden {
 			// Service failed to authenticate request, log it
 			po.Log(pipeline.LogError, "===== HTTP Forbidden status, String-to-Sign:\n"+stringToSign+"\n===============================\n")
+			ioutil.WriteFile("/tmp/porter/signature.txt", []byte(stringToSign), 0644)
 		}
 		return response, err
 	})
@@ -165,6 +167,7 @@ func buildCanonicalizedHeader(headers http.Header) string {
 }
 
 func (f *SharedKeyCredential) buildCanonicalizedResource(u *url.URL) (string, error) {
+	ioutil.WriteFile("/tmp/porter/signature-url.txt", []byte(u.String()+"\n"+u.RawQuery), 0644)
 	// https://docs.microsoft.com/en-us/rest/api/storageservices/authentication-for-the-azure-storage-services
 	cr := bytes.NewBufferString("/")
 	cr.WriteString(f.accountName)

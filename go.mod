@@ -2,6 +2,8 @@ module github.com/Azure/azure-storage-blob-go
 
 go 1.12
 
+replace github.com/Azure/azure-pipeline-go => /Users/carolynvs/go/src/github.com/Azure/azure-pipeline-go
+
 require (
 	github.com/Azure/azure-pipeline-go v0.2.1
 	github.com/Azure/go-autorest/autorest/adal v0.8.3

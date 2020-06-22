@@ -2127,6 +2127,91 @@ func (bsmr BlobSetMetadataResponse) Version() string {
 	return bsmr.rawResponse.Header.Get("x-ms-version")
 }
 
+type BlobGetTagsResponse struct {
+	rawResponse *http.Response
+}
+
+func (bgtr BlobGetTagsResponse) NewTags() (BlobTags, error) {
+	var tags BlobTags
+	defer bgtr.Response().Body.Close()
+	err := xml.NewDecoder(bgtr.Response().Body).Decode(tags)
+	return tags, err
+}
+
+// Response returns the raw HTTP response object.
+func (bgtr BlobGetTagsResponse) Response() *http.Response {
+	return bgtr.rawResponse
+}
+
+// StatusCode returns the HTTP status code of the response, e.g. 200.
+func (bgtr BlobGetTagsResponse) StatusCode() int {
+	return bgtr.rawResponse.StatusCode
+}
+
+// Status returns the HTTP status message of the response, e.g. "200 OK".
+func (bgtr BlobGetTagsResponse) Status() string {
+	return bgtr.rawResponse.Status
+}
+
+// ErrorCode returns the value for header x-ms-error-code.
+func (bgtr BlobGetTagsResponse) ErrorCode() string {
+	return bgtr.rawResponse.Header.Get("x-ms-error-code")
+}
+
+type BlobTags struct {
+	XMLName xml.Name  `xml:"Tags"`
+	Tags    []BlobTag `xml:"TagSet>Tag"`
+}
+
+func NewBlobTags(tags map[string]string) BlobTags {
+	bt := BlobTags{
+		Tags: make([]BlobTag, 0, len(tags)),
+	}
+
+	for k, v := range tags {
+		bt.Tags = append(bt.Tags, BlobTag{Key: k, Value: v})
+	}
+
+	return bt
+}
+
+func (bt BlobTags) ToMap() map[string]string {
+	tags := make(map[string]string, len(bt.Tags))
+	for _, t := range bt.Tags {
+		tags[t.Key] = t.Value
+	}
+	return tags
+}
+
+type BlobTag struct {
+	Key   string `xml:"Key"`
+	Value string `xml:"Value"`
+}
+
+type BlobSetTagsResponse struct {
+	rawResponse *http.Response
+}
+
+// Response returns the raw HTTP response object.
+func (bstr BlobSetTagsResponse) Response() *http.Response {
+	return bstr.rawResponse
+}
+
+// StatusCode returns the HTTP status code of the response, e.g. 200.
+func (bstr BlobSetTagsResponse) StatusCode() int {
+	return bstr.rawResponse.StatusCode
+}
+
+// Status returns the HTTP status message of the response, e.g. "200 OK".
+func (bstr BlobSetTagsResponse) Status() string {
+	return bstr.rawResponse.Status
+}
+
+// ErrorCode returns the value for header x-ms-error-code.
+func (bstr BlobSetTagsResponse) ErrorCode() string {
+	return bstr.rawResponse.Header.Get("x-ms-error-code")
+}
+
 // BlobSetTierResponse ...
 type BlobSetTierResponse struct {
 	rawResponse *http.Response
@@ -3801,6 +3886,68 @@ func NewKeyInfo(Start, Expiry time.Time) KeyInfo {
 		Start:  Start.UTC().Format(SASTimeFormat),
 		Expiry: Expiry.UTC().Format(SASTimeFormat),
 	}
+}
+
+type FilterBlobsByTagsResponse struct {
+	rawResponse *http.Response
+	// XMLName is used for marshalling and is subject to removal in a future release.
+	XMLName         xml.Name            `xml:"EnumerationResults"`
+	ServiceEndpoint string              `xml:"ServiceEndpoint,attr"`
+	ContainerName   string              `xml:"ContainerName,attr"`
+	Prefix          *string             `xml:"Prefix"`
+	Marker          *string             `xml:"Marker"`
+	MaxResults      *int32              `xml:"MaxResults"`
+	Delimiter       *string             `xml:"Delimiter"`
+	Segment         BlobFlatListSegment `xml:"Blobs"`
+	NextMarker      Marker              `xml:"NextMarker"`
+}
+
+// Response returns the raw HTTP response object.
+func (fbbtr FilterBlobsByTagsResponse) Response() *http.Response {
+	return fbbtr.rawResponse
+}
+
+// StatusCode returns the HTTP status code of the response, e.g. 200.
+func (fbbtr FilterBlobsByTagsResponse) StatusCode() int {
+	return fbbtr.rawResponse.StatusCode
+}
+
+// Status returns the HTTP status message of the response, e.g. "200 OK".
+func (fbbtr FilterBlobsByTagsResponse) Status() string {
+	return fbbtr.rawResponse.Status
+}
+
+// ContentType returns the value for header Content-Type.
+func (fbbtr FilterBlobsByTagsResponse) ContentType() string {
+	return fbbtr.rawResponse.Header.Get("Content-Type")
+}
+
+// Date returns the value for header Date.
+func (fbbtr FilterBlobsByTagsResponse) Date() time.Time {
+	s := fbbtr.rawResponse.Header.Get("Date")
+	if s == "" {
+		return time.Time{}
+	}
+	t, err := time.Parse(time.RFC1123, s)
+	if err != nil {
+		t = time.Time{}
+	}
+	return t
+}
+
+// ErrorCode returns the value for header x-ms-error-code.
+func (fbbtr FilterBlobsByTagsResponse) ErrorCode() string {
+	return fbbtr.rawResponse.Header.Get("x-ms-error-code")
+}
+
+// RequestID returns the value for header x-ms-request-id.
+func (fbbtr FilterBlobsByTagsResponse) RequestID() string {
+	return fbbtr.rawResponse.Header.Get("x-ms-request-id")
+}
+
+// Version returns the value for header x-ms-version.
+func (fbbtr FilterBlobsByTagsResponse) Version() string {
+	return fbbtr.rawResponse.Header.Get("x-ms-version")
 }
 
 // ListBlobsFlatSegmentResponse - An enumeration of blobs

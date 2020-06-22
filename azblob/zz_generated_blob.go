@@ -4,15 +4,18 @@ package azblob
 // Changes may cause incorrect behavior and will be lost if the code is regenerated.
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
-	"github.com/Azure/azure-pipeline-go/pipeline"
+	"encoding/xml"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
+
+	"github.com/Azure/azure-pipeline-go/pipeline"
 )
 
 // blobClient is the client for the Blob methods of the Azblob service.
@@ -1142,6 +1145,99 @@ func (client blobClient) setMetadataResponder(resp pipeline.Response) (pipeline.
 	io.Copy(ioutil.Discard, resp.Response().Body)
 	resp.Response().Body.Close()
 	return &BlobSetMetadataResponse{rawResponse: resp.Response()}, err
+}
+
+func (client blobClient) GetTags(ctx context.Context) (*BlobGetTagsResponse, error) {
+	req, err := client.getTagsPreparer()
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.Pipeline().Do(ctx, responderPolicyFactory{responder: client.getTagsResponder}, req)
+	if err != nil {
+		return nil, err
+	}
+	return resp.(*BlobGetTagsResponse), err
+}
+
+func (client blobClient) getTagsPreparer() (pipeline.Request, error) {
+	req, err := pipeline.NewRequest("GET", client.url, nil)
+	if err != nil {
+		return req, pipeline.NewError(err, "failed to create request")
+	}
+	params := req.URL.Query()
+	params.Set("comp", "tags")
+	req.URL.RawQuery = params.Encode()
+	req.Header.Set("x-ms-version", "2019-10-10")
+	req.Header.Set("Content-Type", "application/xml")
+
+	return req, nil
+}
+
+func (client blobClient) getTagsResponder(resp pipeline.Response) (pipeline.Response, error) {
+	err := validateResponse(resp, http.StatusOK)
+	if resp == nil {
+		return nil, err
+	}
+	io.Copy(ioutil.Discard, resp.Response().Body)
+	resp.Response().Body.Close()
+	return &BlobGetTagsResponse{rawResponse: resp.Response()}, err
+}
+
+func (client blobClient) SetTags(ctx context.Context, timeout *int32, tags map[string]string) (*BlobSetTagsResponse, error) {
+	if err := validate([]validation{
+		{targetValue: timeout,
+			constraints: []constraint{{target: "timeout", name: null, rule: false,
+				chain: []constraint{{target: "timeout", name: inclusiveMinimum, rule: 0, chain: nil}}}}}}); err != nil {
+		return nil, err
+	}
+	req, err := client.setTagsPreparer(timeout, tags)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.Pipeline().Do(ctx, responderPolicyFactory{responder: client.setTagsResponder}, req)
+	if err != nil {
+		return nil, err
+	}
+	return resp.(*BlobSetTagsResponse), err
+}
+
+func (client blobClient) setTagsPreparer(timeout *int32, tags map[string]string) (pipeline.Request, error) {
+	req, err := pipeline.NewRequest("PUT", client.url, nil)
+	if err != nil {
+		return req, pipeline.NewError(err, "failed to create request")
+	}
+	params := req.URL.Query()
+	if timeout != nil {
+		params.Set("timeout", strconv.FormatInt(int64(*timeout), 10))
+	}
+	params.Set("comp", "tags")
+	req.URL.RawQuery = params.Encode()
+	req.Header.Set("x-ms-version", "2019-10-10")
+	req.Header.Set("Content-Type", "application/xml")
+	bt := NewBlobTags(tags)
+	tagsB, err := xml.Marshal(bt)
+	if err != nil {
+		return req, err
+	}
+
+	ioutil.WriteFile("/tmp/porter/tags.xml", tagsB, 0644)
+
+	err = req.SetBody(bytes.NewReader(tagsB))
+	if err != nil {
+		return req, err
+	}
+
+	return req, nil
+}
+
+func (client blobClient) setTagsResponder(resp pipeline.Response) (pipeline.Response, error) {
+	err := validateResponse(resp, http.StatusNoContent)
+	if resp == nil {
+		return nil, err
+	}
+	io.Copy(ioutil.Discard, resp.Response().Body)
+	resp.Response().Body.Close()
+	return &BlobSetTagsResponse{rawResponse: resp.Response()}, err
 }
 
 // SetTier the Set Tier operation sets the tier on a blob. The operation is allowed on a page blob in a premium storage

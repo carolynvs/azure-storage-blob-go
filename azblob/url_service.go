@@ -147,3 +147,16 @@ func (bsu ServiceURL) SetProperties(ctx context.Context, properties StorageServi
 func (bsu ServiceURL) GetStatistics(ctx context.Context) (*StorageServiceStats, error) {
 	return bsu.client.GetStatistics(ctx, nil, nil)
 }
+
+type FilterBlobsByTagsOptions struct {
+	Where string
+}
+
+func (f FilterBlobsByTagsOptions) pointers() *string {
+	return &f.Where
+}
+
+func (c ServiceURL) FilterBlobsByTags(ctx context.Context, marker Marker, o FilterBlobsByTagsOptions) (*FilterBlobsByTagsResponse, error) {
+	where := o.pointers()
+	return c.client.FilterBlobsByTags(ctx, marker.Val, where)
+}
